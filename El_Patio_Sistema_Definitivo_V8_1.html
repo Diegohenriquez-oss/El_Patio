@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111111">
+<title>EL PATIO · Control del negocio</title>
+<style>
+:root{--bg:#111;--panel:#1b1b1b;--panel2:#232323;--line:#383838;--text:#f5f5f5;--muted:#aaa;--gold:#d6a84f;--green:#176b45;--red:#7b3030;--blue:#245a78}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding-bottom:88px}
+header{padding:22px 18px 14px;background:#151515;position:sticky;top:0;z-index:5;border-bottom:1px solid #292929}
+h1{margin:0;font-size:28px;letter-spacing:1px}header small{color:var(--muted)}
+nav{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;padding:8px;background:#171717;position:sticky;top:74px;z-index:4}
+nav button{border:0;background:#252525;color:#bbb;padding:10px 3px;border-radius:9px;font-size:11px;font-weight:700}
+nav button.active{background:var(--gold);color:#111}
+main{padding:12px;max-width:720px;margin:auto}.section{font-size:18px;font-weight:800;margin:14px 2px 9px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px}
+.card h3{margin:0 0 5px;font-size:16px}.muted{color:var(--muted);font-size:12px}.price{font-weight:800;color:var(--gold)}
+button{font-family:inherit}.btn{border:0;border-radius:11px;padding:11px 12px;background:#303030;color:#fff;font-weight:750}.primary{background:var(--gold);color:#111}.danger{background:var(--red);color:#fff}.green{background:var(--green);color:#fff}.blue{background:var(--blue);color:#fff}
+.full{width:100%;margin-top:8px}.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}.three{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.badge{display:inline-block;padding:4px 7px;border-radius:20px;background:#303030;color:#ccc;font-size:11px}.open{background:#1e6b47;color:#fff}
+input,select{width:100%;background:#252525;border:1px solid #484848;color:#fff;border-radius:10px;padding:12px;font-size:16px;outline:none}label{font-size:12px;color:#bbb;display:block;margin:9px 0 5px}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:20;align-items:flex-end}.modal.show{display:flex}.sheet{width:100%;max-height:92vh;overflow:auto;background:#181818;border-radius:18px 18px 0 0;padding:18px 15px 28px}.closex{float:right;border:0;background:#333;color:#fff;border-radius:50%;width:38px;height:38px;font-size:23px}
+.product-row{display:grid;grid-template-columns:1fr auto auto auto;gap:7px;align-items:center;background:var(--panel);padding:10px;border-radius:12px;margin:7px 0}.qty{min-width:42px;text-align:center;font-size:18px;font-weight:850}.pm{width:42px;height:42px;border-radius:10px;border:1px solid #4b4b4b;color:#fff;font-size:24px}.minus{background:#5a2a2a}.plus{background:#176b45}
+.total{background:#242424;border:1px solid #444;border-radius:13px;padding:14px;margin:12px 0;font-size:23px;font-weight:900;text-align:right}.change{font-size:20px;font-weight:850;margin:8px 0}.ok{color:#6ee7a8}.warn{color:#f0ca64}.bad{color:#ff8d8d}
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.kpi{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:12px}.kpi b{display:block;font-size:21px;margin-top:4px}
+table{width:100%;border-collapse:collapse;background:var(--panel);border-radius:12px;overflow:hidden}th,td{padding:9px 6px;border-bottom:1px solid #333;text-align:left;font-size:12px}th{color:#bbb}
+.hidden{display:none}.note{color:#999;font-size:12px;line-height:1.45;background:#1a1a1a;padding:10px;border-radius:10px;margin-top:8px}
+.list{display:grid;gap:8px}.sale{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px}
+@media(min-width:600px){.grid{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+<header><h1>EL PATIO</h1><small>Food & Drink · Mesas · Billar · Inventario · Caja</small></header>
+<nav>
+<button data-tab="ventas" class="active">👤 Clientes / Mesas</button>
+<button data-tab="billar">🎱 Billar</button>
+<button data-tab="inventario">Inventario</button>
+<button data-tab="cortes">Cortes / Apertura</button>
+<button data-tab="mas">📊 Historial</button>
+</nav>
+<main id="app"></main>
+
+<div class="modal" id="modal"><div class="sheet">
+<button class="closex" onclick="closeModal()">×</button>
+<div id="modalBody"></div>
+</div></div>
+
+<script>
+const KEY="elpatiov7_data";
+const productsDefault=[
+["Pilsener 12oz",1.10],["Golden Verde 11oz",1.10],["Golden Extra 11oz",1.00],
+["Corona Extra 12oz",1.75],["Modelo Especial 12oz",1.50],["Michelob Ultra 12oz",1.50],
+["Agua Cristal",0.50],["Coca Cola",0.75],["Suprema 12oz",1.10],["Regia 12oz",1.10]
+];
+const tableCount=8,billarCount=4;
+function today(){let d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function money(n){return Number(n||0).toFixed(2)}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function blank(){
+ return {version:7,activeDate:today(),openingCash:0,inventory:productsDefault.map(()=>0),openingInventory:null,
+ products:productsDefault.map(x=>[x[0],x[1]]),tables:Array(tableCount).fill(null),billiards:Array(billarCount).fill(null),
+ sales:[],closes:[],expenses:[]}
+}
+let data;
+try{data=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){data=null}
+if(!data)data=blank();
+data.products=data.products?.length?data.products:productsDefault.map(x=>[x[0],x[1]]);
+data.inventory=data.inventory?.length?data.inventory:Array(data.products.length).fill(0);
+data.tables=data.tables||Array(tableCount).fill(null); while(data.tables.length<tableCount)data.tables.push(null);
+data.billiards=data.billiards||Array(billarCount).fill(null); while(data.billiards.length<billarCount)data.billiards.push(null);
+data.sales=data.sales||[];data.closes=data.closes||[];data.expenses=data.expenses||[];
+function save(){localStorage.setItem(KEY,JSON.stringify(data))}
+function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
+function activeSales(){return data.sales.filter(s=>s.date===data.activeDate)}
+function activeTotal(){return activeSales().reduce((a,s)=>a+s.total,0)}
+function tab(){return location.hash.replace("#","")||"ventas"}
+function go(t){location.hash=t;render()}
+window.addEventListener("hashchange",render);
+document.querySelector("nav").addEventListener("click",e=>{const b=e.target.closest("button[data-tab]");if(b)go(b.dataset.tab)});
+
+function render(){
+document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab()));
+let t=tab(); if(t==="ventas")renderVentas(); else if(t==="billar")renderBillar(); else if(t==="inventario")renderInventario(); else if(t==="cortes")renderCortes(); else renderMas();
+}
+function renderVentas(){
+let open=data.tables.filter(Boolean).length;
+let clients=data.sales.filter(s=>s.type==='individual'&&s.date===data.activeDate&&s.status==='open');
+document.getElementById("app").innerHTML=`
+<div class="section">👤 Clientes</div>
+<button class="btn primary full" onclick="newPerson()">＋ Abrir cliente</button>
+<div class="list" style="margin-top:9px">${clients.map(s=>`<div class="sale"><b>${esc(s.name||'Sin nombre')}</b><div class="muted">Cuenta abierta · $${money(s.total)}</div><button class="btn primary full" onclick="editSale('${s.id}')">Abrir cuenta</button></div>`).join('')||'<div class="note">No hay clientes abiertos. Pulsa «Abrir cliente» para crear una cuenta.</div>'}</div>
+<div class="section">🪑 Mesas</div>
+<div class="grid">${data.tables.map((x,i)=>x?`<div class="card"><h3>Mesa ${i+1}</h3><span class="badge open">OCUPADA</span><div class="muted" style="margin-top:7px">${esc(x.name||'Sin nombre')}</div><div class="price" style="margin-top:7px">$${money(itemsTotal(x.items))}</div><button class="btn primary full" onclick="openTable(${i})">Abrir cuenta</button></div>`:`<div class="card"><h3>Mesa ${i+1}</h3><span class="badge">DISPONIBLE</span><button class="btn green full" onclick="openTable(${i})">＋ Abrir mesa</button></div>`).join('')}</div>
+<div class="section">Resumen del día · ${data.activeDate}</div>
+<div class="kpis"><div class="kpi"><span class="muted">Ventas cobradas</span><b>$${money(activeTotal())}</b></div><div class="kpi"><span class="muted">Cuentas cobradas</span><b>${activeSales().filter(s=>s.status==='paid').length}</b></div></div>`;
+}
+function renderBillar(){
+document.getElementById("app").innerHTML=`
+<div class="section">🎱 Billar</div>
+<div class="note">$3.00 por cliente. El billar se cobra separado de los productos y no descuenta inventario.</div>
+<div class="grid" style="margin-top:10px">${data.billiards.map((x,i)=>`<div class="card"><h3>Billar ${i+1}</h3>${x?`<span class="badge open">OCUPADA</span><button class="btn primary full" style="margin-top:10px" onclick="openBillar(${i})">Ver / cobrar</button>`:`<span class="badge">DISPONIBLE</span><button class="btn green full" style="margin-top:10px" onclick="openBillar(${i})">＋ Abrir billar</button>`}</div>`).join('')}</div>`;
+}
+function renderInventario(){
+let sold=Array(data.products.length).fill(0);
+activeSales().filter(s=>s.status==='paid').forEach(s=>(s.items||[]).forEach((q,i)=>sold[i]+=Number(q||0)));
+document.getElementById("app").innerHTML=`
+<div class="section">📦 Inventario · ${data.activeDate}</div>
+<div class="note">Aquí ves lo disponible y lo vendido durante el día. Al abrir una nueva fecha, las ventas del día empiezan en <b>00</b>; el historial anterior queda guardado.</div>
+<div class="list" style="margin-top:9px">${data.products.map((p,i)=>`<div class="product-row"><div><b>${esc(p[0])}</b><div class="muted">$${money(p[1])}</div><div class="muted">Vendido hoy: <b>${String(sold[i]).padStart(2,'0')}</b></div></div><div class="qty">${String(Number(data.inventory[i]||0)).padStart(2,'0')}</div><button class="pm minus" onclick="adjustInv(${i},-1)">−</button><button class="pm plus" onclick="adjustInv(${i},1)">+</button></div>`).join('')}</div>
+<button class="btn blue full" onclick="restock()">Registrar entrada de productos</button>
+<div class="section">Agregar producto</div>
+<div class="two"><input id="newProd" placeholder="Nombre"><input id="newPrice" type="number" step="0.01" placeholder="Precio" onclick="openQtyModal(this, this.dataset.productName ? ('Cantidad · ' + this.dataset.productName) : 'Cantidad')"></div>
+<button class="btn primary full" onclick="addProduct()">Agregar producto</button>`;
+}
+function renderCortes(){
+let c=data.closes.find(x=>x.date===data.activeDate);
+let sold=Array(data.products.length).fill(0); activeSales().filter(s=>s.status==='paid').forEach(s=>(s.items||[]).forEach((q,i)=>sold[i]+=Number(q||0)));
+document.getElementById("app").innerHTML=`
+<div class="section">Día de operación</div>
+<label>Fecha de apertura</label><input id="opDate" type="date" value="${data.activeDate}">
+<label>Apertura de caja</label><input id="opCash" type="number" step="0.01" value="${money(data.openingCash)}">
+<button class="btn primary full" onclick="openDay()">Abrir / guardar apertura</button>
+<div class="section">Resumen · ${data.activeDate}</div>
+<div class="kpis"><div class="kpi"><span class="muted">Ventas</span><b>$${money(activeTotal())}</b></div><div class="kpi"><span class="muted">Efectivo cobrado</span><b>$${money(activeSales().filter(s=>s.status==='paid').reduce((a,s)=>a+s.cash,0))}</b></div></div>
+<div class="section">Productos vendidos hoy</div>
+<div class="list">${data.products.map((p,i)=>`<div class="sale"><b>${esc(p[0])}</b><span style="float:right">${String(sold[i]).padStart(2,'0')}</span></div>`).join('')}</div>
+<div class="section">Cobros de billar hoy</div>
+<div class="list">${activeSales().filter(s=>s.type==='billar'&&s.status==='paid').map(s=>`<div class="sale"><b>${esc(s.name)}</b><div class="muted">${String(s.people).padStart(2,'0')} clientes · $${money(s.total)}</div></div>`).join('')||'<div class="note">No hay cobros de billar hoy.</div>'}</div>
+<label>Dinero de cierre en caja</label><input id="closeCash" type="number" step="0.01" placeholder="0.00" onclick="openQtyModal(this, this.dataset.productName ? ('Cantidad · ' + this.dataset.productName) : 'Cantidad')">
+<button class="btn danger full" onclick="closeDay()">Guardar cierre del día</button>
+<div class="section">Historial de cierres</div>
+<div class="list">${data.closes.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(c=>`<div class="sale"><b>${c.date}</b><div class="muted">Apertura $${money(c.opening)} · Ventas $${money(c.total)} · Cierre $${money(c.closing)}</div><button class="btn full" onclick="showClose('${c.date}')">Ver productos y billar</button></div>`).join('')||'<div class="note">Aún no hay cierres guardados.</div>'}</div>`;
+}
+function renderMas(){
+document.getElementById("app").innerHTML=`
+<div class="section">📊 Historial</div>
+<div class="note">Aquí quedan guardados los productos vendidos y los cobros por billar de cada día.</div>
+<div class="list">${data.sales.filter(s=>s.status==='paid').slice().reverse().slice(0,120).map(s=>`<div class="sale"><b>${s.date} · ${esc(s.name||s.type)}</b><div class="muted">${s.type==='billar'?`🎱 Billar · ${String(s.people).padStart(2,'0')} clientes`:`📦 ${productSummary(s.items)}`}</div><b>$${money(s.total)}</b></div>`).join('')||'<div class="note">No hay ventas todavía.</div>'}</div>
+<div class="section">Seguridad de datos</div>
+<div class="note">Como Safari puede borrar el almacenamiento del sitio, haz una copia de seguridad con frecuencia.</div>
+<button class="btn blue full" onclick="backup()">⬇️ Descargar copia de seguridad</button>
+<label>Restaurar copia JSON</label><input type="file" id="restoreFile" accept=".json,application/json">
+<button class="btn primary full" onclick="restore()">Restaurar datos</button>
+<div class="section">Gastos</div>
+<div class="two"><input id="expenseDesc" placeholder="Descripción"><input id="expenseAmt" type="number" step="0.01" placeholder="$" onclick="openQtyModal(this, this.dataset.productName ? ('Cantidad · ' + this.dataset.productName) : 'Cantidad')"></div>
+<button class="btn danger full" onclick="addExpense()">Registrar gasto</button>
+<div class="list" style="margin-top:8px">${data.expenses.filter(x=>x.date===data.activeDate).map(x=>`<div class="sale">${esc(x.desc)} <b style="float:right">$${money(x.amount)}</b></div>`).join('')||'<div class="note">Sin gastos registrados hoy.</div>'}</div>`;
+}
+function productSummary(items){return (items||[]).map((q,i)=>Number(q)>0?`${esc(data.products[i]?.[0]||'Producto')} x${q}`:'').filter(Boolean).join(' · ')||'Sin productos'}
+function modal(title,body){document.getElementById("modalBody").innerHTML=`<h2>${title}</h2>${body}`;document.getElementById("modal").classList.add("show")}
+function closeModal(){document.getElementById("modal").classList.remove("show")}
+function itemsTotal(items){return items.reduce((a,q,i)=>a+q*(data.products[i]?.[1]||0),0)}
+function productRows(items){
+return data.products.map((p,i)=>`<div class="product-row"><div><b>${esc(p[0])}</b><div class="muted">$${money(p[1])}</div></div><button class="pm minus" onclick="changeModalQty(${i},-1)">−</button><div class="qty" id="mq${i}">${String(items[i]||0).padStart(2,"0")}</div><button class="pm plus" onclick="changeModalQty(${i},1)">+</button></div>`).join("")
+}
+let modalState=null;
+function changeModalQty(i,d){if(!modalState)return;modalState.items[i]=Math.max(0,(modalState.items[i]||0)+d);let e=document.getElementById("mq"+i);if(e)e.textContent=String(modalState.items[i]).padStart(2,"0");let t=document.getElementById("mtotal");if(t)t.textContent=money(itemsTotal(modalState.items))}
+function openTable(i){
+if(!data.tables[i])data.tables[i]={name:"",items:Array(data.products.length).fill(0)};
+modalState={kind:"table",index:i,items:[...data.tables[i].items],name:data.tables[i].name||""};
+modal("Mesa "+(i+1),`<label>Nombre del cliente (opcional)</label><input id="mname" value="${esc(modalState.name)}" placeholder="Ej. Juan Pérez"><h3>Productos</h3>${productRows(modalState.items)}<div class="total">Total: $<span id="mtotal">${money(itemsTotal(modalState.items))}</span></div><div class="two"><button class="btn" onclick="saveOpenTable()">Guardar cuenta</button><button class="btn danger" onclick="chargeTable()">Cobrar y cerrar</button></div>`)
+}
+function saveOpenTable(){data.tables[modalState.index]={name:document.getElementById("mname").value.trim(),items:modalState.items};save();closeModal();render()}
+function chargeTable(){
+let total=itemsTotal(modalState.items); if(total<=0){alert("Agrega al menos un producto.");return}
+payModal("Mesa "+(modalState.index+1),total,"table")
+}
+function newPerson(){
+modalState={kind:"individual",id:null,items:Array(data.products.length).fill(0),name:""};
+modal("Cobro por separado",`<label>Nombre del cliente</label><input id="mname" placeholder="Ej. Leonel"><h3>Productos</h3>${productRows(modalState.items)}<div class="total">Total: $<span id="mtotal">0.00</span></div><button class="btn primary full" onclick="savePerson()">Guardar cuenta</button>`)
+}
+function editSale(id){
+let s=data.sales.find(x=>x.id===id); if(!s)return;
+modalState={kind:"individual",id,items:[...s.items],name:s.name||""};
+modal("Cobro por separado",`<label>Nombre del cliente</label><input id="mname" value="${esc(s.name||"")}"><h3>Productos</h3>${productRows(modalState.items)}<div class="total">Total: $<span id="mtotal">${money(itemsTotal(modalState.items))}</span></div><div class="two"><button class="btn" onclick="savePerson()">Guardar</button><button class="btn danger" onclick="payPerson()">Cobrar y cerrar</button></div>`)
+}
+function savePerson(){
+let name=document.getElementById("mname").value.trim()||"Sin nombre",total=itemsTotal(modalState.items);
+let s=modalState.id?data.sales.find(x=>x.id===modalState.id):null;
+if(s){s.name=name;s.items=modalState.items;s.total=total}else data.sales.push({id:uid(),date:data.activeDate,type:"individual",name,items:modalState.items,total,status:"open",cash:0});
+save();closeModal();render()
+}
+function payPerson(){let s=data.sales.find(x=>x.id===modalState.id);if(!s){savePerson();s=data.sales[data.sales.length-1]}payModal(s.name,s.total,"individual",s.id)}
+function payModal(title,total,type,id){
+modal("Cobrar · "+esc(title),`<div class="total">$${money(total)}</div><label>Dinero recibido</label><input id="cash" type="number" step="0.01" inputmode="decimal" oninput="updateChange(${total})" placeholder="0.00" onclick="openQtyModal(this, this.dataset.productName ? ('Cantidad · ' + this.dataset.productName) : 'Cantidad')"><div id="chg" class="change">Vuelto: $0.00</div><button class="btn primary full" onclick="finishPay(${total},'${type}','${id||""}')">Cobrar y cerrar</button>`)
+}
+function updateChange(total){let c=Number(document.getElementById("cash").value||0),e=document.getElementById("chg");let d=c-total;e.className="change "+(d>=0?"ok":"bad");e.textContent="Vuelto: $"+money(Math.max(0,d))}
+function finishPay(total,type,id){
+let cash=Number(document.getElementById("cash").value||0);if(cash<total){alert("El dinero recibido es menor que el total.");return}
+if(type==="table"){let i=modalState.index,items=modalState.items;data.sales.push({id:uid(),date:data.activeDate,type:"table",name:document.getElementById("mname")?.value.trim()||"Mesa "+(i+1),items:[...items],total,status:"paid",cash});items.forEach((q,j)=>data.inventory[j]=Math.max(0,Number(data.inventory[j]||0)-q));data.tables[i]=null}
+else{let s=data.sales.find(x=>x.id===id);if(!s){alert("No se encontró la cuenta.");return}s.status="paid";s.cash=cash;s.date=data.activeDate;s.total=total;s.items=s.items||[];s.items.forEach((q,j)=>data.inventory[j]=Math.max(0,Number(data.inventory[j]||0)-q))}
+save();closeModal();render()
+}
+function openBillar(i){
+let x=data.billiards[i]||{people:0};
+modalState={kind:"billar",index:i,people:x.people};
+modal("🎱 Billar "+(i+1),`<div class="note">Precio: $3.00 por cliente</div><div class="three" style="margin-top:12px"><button class="pm minus" onclick="billQty(-1)">−</button><div class="qty" id="bqty" style="font-size:28px">${String(x.people).padStart(2,"0")}</div><button class="pm plus" onclick="billQty(1)">+</button></div><div class="total">$<span id="btotal">${money(x.people*3)}</span></div><div class="two"><button class="btn" onclick="saveBillar()">Guardar</button><button class="btn danger" onclick="chargeBillar()">Cobrar y cerrar</button></div>`)
+}
+function billQty(d){modalState.people=Math.max(0,modalState.people+d);document.getElementById("bqty").textContent=String(modalState.people).padStart(2,"0");document.getElementById("btotal").textContent=money(modalState.people*3)}
+function saveBillar(){if(modalState.people<=0){data.billiards[modalState.index]=null}else data.billiards[modalState.index]={people:modalState.people};save();closeModal();render()}
+function chargeBillar(){if(modalState.people<=0){alert("Agrega al menos 1 cliente.");return}payModal("Billar "+(modalState.index+1),modalState.people*3,"billar")}
+function finishBillar(total){
+let cash=Number(document.getElementById("cash").value||0);if(cash<total){alert("El dinero recibido es menor que el total.");return}
+data.sales.push({id:uid(),date:data.activeDate,type:"billar",name:"Billar "+(modalState.index+1),people:modalState.people,items:[],total,status:"paid",cash});
+data.billiards[modalState.index]=null;save();closeModal();render()
+}
+const oldFinish=finishPay;
+window.finishPay=function(total,type,id){if(type==="billar"){finishBillar(total);return}oldFinish(total,type,id)}
+function adjustInv(i,d){data.inventory[i]=Math.max(0,Number(data.inventory[i]||0)+d);save();render()}
+function restock(){modal("Entrada de productos",data.products.map((p,i)=>`<label>${esc(p[0])}</label><input id="rst${i}" type="number" min="0" step="1" value="0" onclick="openQtyModal(this, this.dataset.productName ? ('Cantidad · ' + this.dataset.productName) : 'Cantidad')">`).join("")+`<button class="btn primary full" onclick="saveRestock()">Guardar entrada</button>`)}
+function saveRestock(){data.products.forEach((p,i)=>{let q=parseInt(document.getElementById("rst"+i).value||0);if(q>0)data.inventory[i]=Number(data.inventory[i]||0)+q});save();closeModal();render()}
+function addProduct(){let n=document.getElementById("newProd").value.trim(),p=Number(document.getElementById("newPrice").value);if(!n||p<0){alert("Ingresa nombre y precio.");return}data.products.push([n,p]);data.inventory.push(0);data.tables.forEach(t=>{if(t)t.items.push(0)});data.sales.forEach(s=>{if(s.status==="open")s.items.push(0)});save();render()}
+function openDay(){
+let d=document.getElementById("opDate").value||today(),cash=Number(document.getElementById("opCash").value||0);if(cash<0){alert("La apertura no puede ser negativa.");return}
+if(d!==data.activeDate&&data.activeDate){/* intentionally allow manual selection */}
+data.activeDate=d;data.openingCash=cash;
+let c=data.closes.find(x=>x.date===d);if(!c){data.openingInventory=[...data.inventory];data.closes.push({date:d,opening:cash,closing:0,total:0,cash:0,openingInventory:[...data.inventory],closingInventory:null})}else{c.opening=cash;if(!c.openingInventory)c.openingInventory=[...data.inventory]}
+save();render();alert("Día de operación abierto: "+d+". Las ventas seguirán perteneciendo a esta fecha hasta que abras otro día.")
+}
+function soldQty(i){return activeSales().filter(s=>s.status==='paid').reduce((a,s)=>a+Number((s.items||[])[i]||0),0)}
+function closeDay(){
+let close=Number(document.getElementById("closeCash").value||0);if(close<0){alert("El cierre no puede ser negativo.");return}
+let d=data.activeDate,c=data.closes.find(x=>x.date===d);if(!c){c={date:d,opening:data.openingCash,openingInventory:data.openingInventory?[...data.openingInventory]:[...data.inventory]};data.closes.push(c)}
+let sales=activeSales().filter(s=>s.status==="paid");c.opening=data.openingCash;c.closing=close;c.total=sales.reduce((a,s)=>a+s.total,0);c.cash=sales.reduce((a,s)=>a+s.cash,0);c.sales=sales.length;c.closingInventory=[...data.inventory];c.productsSold=data.products.map((p,i)=>({name:p[0],qty:soldQty(i)}));c.billiardSales=sales.filter(s=>s.type==='billar').map(s=>({name:s.name,people:s.people,total:s.total,cash:s.cash}));save();render();alert("Cierre guardado para "+d+".")
+}
+function showClose(d){let c=data.closes.find(x=>x.date===d);if(!c)return;let products=(c.productsSold||[]).map(x=>`${x.name}: ${String(x.qty||0).padStart(2,'0')}`).join("\n");let bill=(c.billiardSales||[]).map(x=>`${x.name}: ${String(x.people||0).padStart(2,'0')} clientes · $${money(x.total)}`).join("\n")||"Sin cobros de billar";alert(`DÍA ${d}\n\nApertura de caja: $${money(c.opening)}\nVentas: $${money(c.total)}\nEfectivo recibido: $${money(c.cash)}\nCierre de caja: $${money(c.closing)}\n\nPRODUCTOS VENDIDOS\n${products||'Sin productos'}\n\nCOBROS DE BILLAR\n${bill}`)}
+function addExpense(){let desc=document.getElementById("expenseDesc").value.trim(),amount=Number(document.getElementById("expenseAmt").value);if(!desc||amount<=0){alert("Ingresa descripción y monto.");return}data.expenses.push({id:uid(),date:data.activeDate,desc,amount});save();render()}
+function backup(){let blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="El_Patio_respaldo_"+today()+".json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+function restore(){let f=document.getElementById("restoreFile").files[0];if(!f){alert("Selecciona un archivo de respaldo.");return}if(!confirm("Esto reemplazará los datos actuales por los del respaldo. ¿Continuar?"))return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!x.products||!x.sales)throw Error();data=x;save();render();alert("Respaldo restaurado.")}catch(e){alert("El archivo no parece ser un respaldo válido de El Patio.")}};r.readAsText(f)}
+render();
+</script>
+
+<div id="qtyModal" class="modal" hidden>
+  <div class="sheet" style="max-width:360px">
+    <button class="closex" onclick="closeQtyModal()">×</button>
+    <h2 id="qtyTitle" style="margin-top:0">Cantidad</h2>
+    <input id="qtyInput" type="number" min="0" inputmode="numeric"
+      style="width:100%;font-size:28px;text-align:center;padding:14px;border-radius:12px;border:1px solid #444;background:#111;color:#fff"
+      onkeydown="if(event.key==='Enter')applyQty()">
+    <div class="actions" style="margin-top:12px">
+      <button onclick="closeQtyModal()">Cancelar</button>
+      <button class="selected" onclick="applyQty()">Guardar</button>
+    </div>
+  </div>
+</div>
+<script>
+let qtyTarget=null;
+function openQtyModal(target,title){
+  qtyTarget=target;
+  document.getElementById('qtyTitle').textContent=title||'Cantidad';
+  document.getElementById('qtyInput').value=String(Math.max(0,Number(target.value)||0));
+  document.getElementById('qtyModal').hidden=false;
+  setTimeout(()=>{let x=document.getElementById('qtyInput');x.focus();x.select()},50);
+}
+function closeQtyModal(){document.getElementById('qtyModal').hidden=true;qtyTarget=null}
+function applyQty(){
+  if(!qtyTarget)return;
+  let n=Math.max(0,Math.floor(Number(document.getElementById('qtyInput').value)||0));
+  qtyTarget.value=n;
+  qtyTarget.dispatchEvent(new Event('input',{bubbles:true}));
+  qtyTarget.dispatchEvent(new Event('change',{bubbles:true}));
+  closeQtyModal();
+}
+</script>
+
+</body>
+</html>
